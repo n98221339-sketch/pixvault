@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PixVault — Image Hosting</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --bg2: #0f0f1a;
+    --bg3: #141428;
+    --card: #12121f;
+    --border: #2a1f4a;
+    --purple: #7c3aed;
+    --purple-light: #a855f7;
+    --purple-glow: #9333ea;
+    --accent: #c084fc;
+    --white: #f0eaff;
+    --muted: #6b5a8a;
+    --success: #4ade80;
+    --error: #f87171;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--white);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background mesh */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 40% at 20% 10%, rgba(124,58,237,0.15) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 50% at 80% 80%, rgba(168,85,247,0.1) 0%, transparent 60%),
+      radial-gradient(ellipse 30% 30% at 50% 50%, rgba(147,51,234,0.05) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Noise texture */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.4;
+  }
+
+  /* ─── HEADER ─── */
+  header {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 24px 48px;
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(20px);
+    background: rgba(10,10,15,0.7);
+    position: sticky;
+    top: 0;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.5rem;
+    letter-spacing: -0.02em;
+    color: var(--white);
+    text-decoration: none;
+  }
+
+  .logo-icon {
+    width: 38px;
+    height: 38px;
+    position: relative;
+  }
+
+  /* Custom SVG logo */
+  .logo-icon svg { width: 100%; height: 100%; }
+
+  .logo span { color: var(--accent); }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 0.875rem;
+    color: var(--muted);
+  }
+
+  .stat-pill {
+    background: rgba(124,58,237,0.1);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 6px 14px;
+    font-size: 0.8rem;
+    color: var(--accent);
+  }
+
+  /* ─── MAIN ─── */
+  main {
+    position: relative;
+    z-index: 5;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 60px 24px 100px;
+  }
+
+  /* Hero */
+  .hero {
+    text-align: center;
+    margin-bottom: 52px;
+    animation: fadeUp 0.6s ease both;
+  }
+
+  .hero h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(2.5rem, 6vw, 4rem);
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    margin-bottom: 16px;
+    background: linear-gradient(135deg, var(--white) 30%, var(--accent) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .hero p {
+    color: var(--muted);
+    font-size: 1.05rem;
+    font-weight: 300;
+  }
+
+  /* ─── UPLOAD ZONE ─── */
+  .upload-card {
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    border-radius: 20px;
+    overflow: hidden;
+    animation: fadeUp 0.6s 0.1s ease both;
+    box-shadow: 0 0 60px rgba(124,58,237,0.08), inset 0 1px 0 rgba(255,255,255,0.04);
+  }
+
+  .drop-zone {
+    padding: 60px 40px;
+    text-align: center;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.2s;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .drop-zone:hover, .drop-zone.dragover {
+    background: rgba(124,58,237,0.06);
+  }
+
+  .drop-zone.dragover {
+    border-color: var(--purple);
+  }
+
+  #fileInput { display: none; }
+
+  .drop-icon {
+    width: 72px;
+    height: 72px;
+    margin: 0 auto 20px;
+    background: linear-gradient(135deg, rgba(124,58,237,0.2), rgba(168,85,247,0.1));
+    border: 1.5px solid rgba(124,58,237,0.4);
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+
+  .drop-zone:hover .drop-icon {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 30px rgba(124,58,237,0.25);
+  }
+
+  .drop-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .drop-sub {
+    color: var(--muted);
+    font-size: 0.875rem;
+  }
+
+  .drop-sub strong {
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  .browse-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 22px;
+    background: linear-gradient(135deg, var(--purple), var(--purple-glow));
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 12px 28px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 4px 20px rgba(124,58,237,0.4);
+  }
+
+  .browse-btn:hover {
+    opacity: 0.92;
+    transform: translateY(-1px);
+    box-shadow: 0 8px 30px rgba(124,58,237,0.5);
+  }
+
+  /* Progress area */
+  .upload-progress {
+    padding: 20px 28px;
+    display: none;
+    flex-direction: column;
+    gap: 10px;
+    background: rgba(0,0,0,0.2);
+  }
+
+  .progress-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.85rem;
+  }
+
+  .progress-item .fname { flex: 1; color: var(--white); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .progress-bar-wrap {
+    width: 120px;
+    height: 4px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--purple), var(--accent));
+    border-radius: 4px;
+    transition: width 0.4s ease;
+  }
+
+  .progress-pct { width: 36px; text-align: right; color: var(--muted); font-size: 0.8rem; }
+
+  /* Upload button bar */
+  .upload-bar {
+    padding: 20px 28px;
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .file-count { color: var(--muted); font-size: 0.875rem; }
+  .file-count strong { color: var(--white); }
+
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: linear-gradient(135deg, var(--purple), var(--purple-light));
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 11px 26px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 20px rgba(124,58,237,0.35);
+  }
+
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 28px rgba(124,58,237,0.5); }
+  .btn-primary:active { transform: translateY(0); }
+
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 10px;
+    padding: 10px 18px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-ghost:hover { border-color: var(--purple); color: var(--white); }
+
+  /* ─── RESULTS ─── */
+  .results-section {
+    margin-top: 48px;
+    animation: fadeUp 0.5s ease both;
+  }
+
+  .results-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+
+  .section-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+  }
+
+  .clear-btn {
+    font-size: 0.8rem;
+    color: var(--muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px 8px;
+    transition: color 0.2s;
+  }
+
+  .clear-btn:hover { color: var(--error); }
+
+  .results-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  /* Result card */
+  .result-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    animation: fadeUp 0.4s ease both;
+  }
+
+  .result-card:hover {
+    border-color: rgba(124,58,237,0.5);
+    box-shadow: 0 0 30px rgba(124,58,237,0.08);
+  }
+
+  .result-thumb {
+    width: 140px;
+    height: 140px;
+    object-fit: cover;
+    display: block;
+    background: var(--bg3);
+  }
+
+  .result-info {
+    padding: 20px 22px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .result-name {
+    font-weight: 500;
+    font-size: 0.9rem;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .result-meta {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+
+  .links-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .link-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 10px;
+    padding: 8px 12px;
+  }
+
+  .link-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--accent);
+    min-width: 50px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .link-value {
+    flex: 1;
+    font-size: 0.78rem;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .copy-btn {
+    background: rgba(124,58,237,0.15);
+    border: none;
+    border-radius: 7px;
+    padding: 5px 10px;
+    cursor: pointer;
+    color: var(--accent);
+    font-size: 0.72rem;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 500;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+
+  .copy-btn:hover { background: rgba(124,58,237,0.3); }
+  .copy-btn.copied { background: rgba(74,222,128,0.15); color: var(--success); }
+
+  /* ─── TOAST ─── */
+  .toast {
+    position: fixed;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 22px;
+    font-size: 0.875rem;
+    color: var(--white);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    opacity: 0;
+    transition: all 0.3s;
+    z-index: 999;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  }
+
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  .toast.success { border-color: rgba(74,222,128,0.4); }
+  .toast.error { border-color: rgba(248,113,113,0.4); }
+
+  /* ─── EMPTY STATE ─── */
+  .empty-hint {
+    text-align: center;
+    padding: 60px 0;
+    color: var(--muted);
+    font-size: 0.875rem;
+  }
+
+  /* ─── ANIMATIONS ─── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(18px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes pulse-ring {
+    0% { transform: scale(1); opacity: 0.6; }
+    100% { transform: scale(1.4); opacity: 0; }
+  }
+
+  /* ─── RESPONSIVE ─── */
+  @media (max-width: 600px) {
+    header { padding: 18px 20px; }
+    main { padding: 40px 16px 80px; }
+    .result-card { grid-template-columns: 1fr; }
+    .result-thumb { width: 100%; height: 180px; }
+    .drop-zone { padding: 40px 20px; }
+    .upload-bar { flex-direction: column; align-items: stretch; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <a class="logo" href="#">
+    <div class="logo-icon">
+      <svg viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="38" height="38" rx="10" fill="url(#bg_grad)"/>
+        <!-- Mountain/landscape icon -->
+        <path d="M6 28 L14 16 L19 22 L24 13 L32 28 Z" fill="rgba(255,255,255,0.15)" stroke="none"/>
+        <path d="M6 28 L14 16 L19 22 L24 13 L32 28 Z" fill="none" stroke="url(#line_grad)" stroke-width="1.5" stroke-linejoin="round"/>
+        <!-- Circle (sun) -->
+        <circle cx="27" cy="13" r="3" fill="url(#sun_grad)" opacity="0.9"/>
+        <!-- Decorative corner -->
+        <rect x="5" y="5" width="6" height="1.5" rx="0.75" fill="rgba(200,132,252,0.5)"/>
+        <rect x="5" y="8" width="4" height="1.5" rx="0.75" fill="rgba(200,132,252,0.3)"/>
+        <defs>
+          <linearGradient id="bg_grad" x1="0" y1="0" x2="38" y2="38">
+            <stop offset="0%" stop-color="#4c1d95"/>
+            <stop offset="100%" stop-color="#7c3aed"/>
+          </linearGradient>
+          <linearGradient id="line_grad" x1="6" y1="13" x2="32" y2="28">
+            <stop offset="0%" stop-color="#a855f7"/>
+            <stop offset="100%" stop-color="#c084fc"/>
+          </linearGradient>
+          <linearGradient id="sun_grad" x1="24" y1="10" x2="30" y2="16">
+            <stop offset="0%" stop-color="#fde68a"/>
+            <stop offset="100%" stop-color="#f59e0b"/>
+          </linearGradient>
+        </defs>
+      </svg>
+    </div>
+    Pix<span>Vault</span>
+  </a>
+  <div class="header-right">
+    <div class="stat-pill" id="uploadCount">0 ảnh đã upload</div>
+  </div>
+</header>
+
+<!-- MAIN -->
+<main>
+  <div class="hero">
+    <h1>Lưu trữ ảnh<br>siêu tốc & miễn phí</h1>
+    <p>Upload ảnh, lấy link ngay — không cần đăng ký, không giới hạn</p>
+  </div>
+
+  <!-- Upload Card -->
+  <div class="upload-card">
+    <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+      <input type="file" id="fileInput" multiple accept="image/*">
+
+      <div class="drop-icon" id="dropIcon">
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+          <!-- Custom upload cloud icon -->
+          <path d="M10 22C7.24 22 5 19.76 5 17C5 14.5 6.8 12.42 9.18 12.06C9.06 11.57 9 11.04 9 10.5C9 7.46 11.46 5 14.5 5C16.87 5 18.9 6.46 19.73 8.55C20.28 8.2 20.93 8 21.62 8C23.74 8 25.46 9.72 25.46 11.84C25.46 11.94 25.46 12.04 25.45 12.14C27.44 12.72 28.88 14.56 28.88 16.72C28.88 19.37 26.73 21.52 24.08 21.52" stroke="url(#upload_grad)" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M16 28V18M16 18L12.5 21.5M16 18L19.5 21.5" stroke="url(#upload_grad)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          <defs>
+            <linearGradient id="upload_grad" x1="5" y1="5" x2="29" y2="29">
+              <stop offset="0%" stop-color="#a855f7"/>
+              <stop offset="100%" stop-color="#c084fc"/>
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+
+      <div class="drop-title">Kéo thả ảnh vào đây</div>
+      <div class="drop-sub">Hỗ trợ <strong>JPG, PNG, GIF, WebP, SVG</strong> — Tối đa 32MB/ảnh</div>
+      <button class="browse-btn" onclick="event.stopPropagation(); document.getElementById('fileInput').click()">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M2 12L5 6L8 9L10 7L14 12H2Z" stroke="white" stroke-width="1.3" stroke-linejoin="round"/>
+          <circle cx="11" cy="4.5" r="1.5" stroke="white" stroke-width="1.3"/>
+        </svg>
+        Chọn ảnh từ máy
+      </button>
+    </div>
+
+    <!-- Progress -->
+    <div class="upload-progress" id="progressArea"></div>
+
+    <!-- Upload bar -->
+    <div class="upload-bar" id="uploadBar">
+      <span class="file-count" id="fileCountLabel">Đã chọn <strong>0</strong> ảnh</span>
+      <div style="display:flex; gap:10px;">
+        <button class="btn-ghost" onclick="clearSelected()">Xóa tất cả</button>
+        <button class="btn-primary" id="uploadBtn" onclick="uploadAll()">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M8 10V3M8 3L5 6M8 3L11 6" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M2 11V13.5C2 13.78 2.22 14 2.5 14H13.5C13.78 14 14 13.78 14 13.5V11" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          Upload ảnh
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="results-section" id="resultsSection" style="display:none;">
+    <div class="results-header">
+      <div class="section-title">Ảnh đã upload</div>
+      <button class="clear-btn" onclick="clearResults()">
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" style="vertical-align:middle;margin-right:4px;">
+          <path d="M1 1L12 12M1 12L12 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        Xóa kết quả
+      </button>
+    </div>
+    <div class="results-grid" id="resultsGrid"></div>
+  </div>
+</main>
+
+<!-- Toast -->
+<div class="toast" id="toast">
+  <svg id="toastIcon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+    <path d="M3 8L6.5 11.5L13 4.5" stroke="#4ade80" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+  <span id="toastMsg">Đã copy!</span>
+</div>
+
+<script>
+// ─── STATE ───
+let selectedFiles = [];
+let uploadedImages = [];
+let uploadCounter = 0;
+
+// ─── FILE INPUT ───
+const fileInput = document.getElementById('fileInput');
+fileInput.addEventListener('change', e => addFiles(Array.from(e.target.files)));
+
+// ─── DRAG & DROP ───
+const dropZone = document.getElementById('dropZone');
+
+dropZone.addEventListener('dragover', e => {
+  e.preventDefault();
+  dropZone.classList.add('dragover');
+});
+
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+  addFiles(files);
+});
+
+// ─── ADD FILES ───
+function addFiles(files) {
+  const valid = files.filter(f => f.size <= 32 * 1024 * 1024);
+  if (valid.length < files.length) showToast('Một số ảnh vượt quá 32MB', 'error');
+  selectedFiles.push(...valid);
+  updateUploadBar();
+}
+
+function updateUploadBar() {
+  const bar = document.getElementById('uploadBar');
+  const label = document.getElementById('fileCountLabel');
+  if (selectedFiles.length > 0) {
+    bar.style.display = 'flex';
+    label.innerHTML = `Đã chọn <strong>${selectedFiles.length}</strong> ảnh`;
+  } else {
+    bar.style.display = 'none';
+  }
+}
+
+function clearSelected() {
+  selectedFiles = [];
+  fileInput.value = '';
+  document.getElementById('uploadBar').style.display = 'none';
+  document.getElementById('progressArea').style.display = 'none';
+}
+
+// ─── UPLOAD ALL ───
+async function uploadAll() {
+  if (selectedFiles.length === 0) return;
+
+  const btn = document.getElementById('uploadBtn');
+  btn.disabled = true;
+  btn.style.opacity = '0.6';
+
+  const progressArea = document.getElementById('progressArea');
+  progressArea.style.display = 'flex';
+  progressArea.innerHTML = '';
+
+  const results = [];
+
+  for (let i = 0; i < selectedFiles.length; i++) {
+    const file = selectedFiles[i];
+    const item = createProgressItem(file.name, i);
+    progressArea.appendChild(item.el);
+
+    const result = await simulateUpload(file, item.bar, item.pct);
+    results.push(result);
+  }
+
+  uploadedImages.unshift(...results.reverse());
+  updateCounter();
+  renderResults();
+
+  selectedFiles = [];
+  fileInput.value = '';
+  document.getElementById('uploadBar').style.display = 'none';
+
+  setTimeout(() => {
+    progressArea.style.display = 'none';
+    progressArea.innerHTML = '';
+  }, 1200);
+
+  btn.disabled = false;
+  btn.style.opacity = '1';
+  showToast(`Upload thành công ${results.length} ảnh!`, 'success');
+}
+
+function createProgressItem(name, idx) {
+  const el = document.createElement('div');
+  el.className = 'progress-item';
+  el.innerHTML = `
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+      <rect width="14" height="14" rx="3" fill="rgba(124,58,237,0.3)"/>
+      <path d="M3 8L5 5.5L7 7L9 4.5L11 8H3Z" fill="rgba(200,132,252,0.7)"/>
+    </svg>
+    <span class="fname">${escHtml(name)}</span>
+    <div class="progress-bar-wrap"><div class="progress-bar" style="width:0%"></div></div>
+    <span class="progress-pct">0%</span>
+  `;
+  const bar = el.querySelector('.progress-bar');
+  const pct = el.querySelector('.progress-pct');
+  return { el, bar, pct };
+}
+
+function simulateUpload(file, barEl, pctEl) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    let progress = 0;
+
+    const interval = setInterval(() => {
+      progress += Math.random() * 25 + 10;
+      if (progress >= 100) {
+        progress = 100;
+        clearInterval(interval);
+      }
+      barEl.style.width = progress + '%';
+      pctEl.textContent = Math.round(progress) + '%';
+    }, 120);
+
+    reader.onload = e => {
+      const dataUrl = e.target.result;
+      setTimeout(() => {
+        resolve({
+          id: ++uploadCounter,
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          dataUrl,
+          date: new Date(),
+        });
+      }, 800);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// ─── RENDER RESULTS ───
+function renderResults() {
+  const section = document.getElementById('resultsSection');
+  const grid = document.getElementById('resultsGrid');
+
+  if (uploadedImages.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+
+  section.style.display = 'block';
+  grid.innerHTML = '';
+
+  uploadedImages.forEach((img, idx) => {
+    const fakeUrl = `https://pixvault.app/i/${img.id}_${img.name.replace(/\s/g,'_')}`;
+    const htmlEmbed = `<img src="${fakeUrl}" alt="${escHtml(img.name)}">`;
+    const bbCode = `[img]${fakeUrl}[/img]`;
+
+    const card = document.createElement('div');
+    card.className = 'result-card';
+    card.style.animationDelay = (idx * 0.05) + 's';
+    card.innerHTML = `
+      <img class="result-thumb" src="${img.dataUrl}" alt="${escHtml(img.name)}" loading="lazy">
+      <div class="result-info">
+        <div>
+          <div class="result-name">${escHtml(img.name)}</div>
+          <div class="result-meta">${formatSize(img.size)} · ${img.date.toLocaleString('vi')}</div>
+        </div>
+        <div class="links-grid">
+          <div class="link-row">
+            <span class="link-label">Direct</span>
+            <span class="link-value">${fakeUrl}</span>
+            <button class="copy-btn" onclick="copyText('${fakeUrl}', this)">Copy</button>
+          </div>
+          <div class="link-row">
+            <span class="link-label">HTML</span>
+            <span class="link-value">${escHtml(htmlEmbed)}</span>
+            <button class="copy-btn" onclick="copyText(\`${htmlEmbed}\`, this)">Copy</button>
+          </div>
+          <div class="link-row">
+            <span class="link-label">BBCode</span>
+            <span class="link-value">${escHtml(bbCode)}</span>
+            <button class="copy-btn" onclick="copyText('${bbCode}', this)">Copy</button>
+          </div>
+        </div>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function clearResults() {
+  uploadedImages = [];
+  updateCounter();
+  document.getElementById('resultsSection').style.display = 'none';
+}
+
+function updateCounter() {
+  document.getElementById('uploadCount').textContent = `${uploadedImages.length} ảnh đã upload`;
+}
+
+// ─── COPY ───
+function copyText(text, btn) {
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = '✓ Copied';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+    showToast('Đã copy vào clipboard!', 'success');
+  }).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    btn.textContent = '✓ Copied';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+    showToast('Đã copy vào clipboard!', 'success');
+  });
+}
+
+// ─── TOAST ───
+let toastTimer;
+function showToast(msg, type = 'success') {
+  const toast = document.getElementById('toast');
+  const msgEl = document.getElementById('toastMsg');
+  const icon = document.getElementById('toastIcon');
+
+  msgEl.textContent = msg;
+  toast.className = 'toast show ' + type;
+
+  if (type === 'error') {
+    icon.innerHTML = `<path d="M8 3V9M8 11.5V12" stroke="#f87171" stroke-width="1.8" stroke-linecap="round"/>`;
+  } else {
+    icon.innerHTML = `<path d="M3 8L6.5 11.5L13 4.5" stroke="#4ade80" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`;
+  }
+
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 2800);
+}
+
+// ─── UTILS ───
+function formatSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── PASTE FROM CLIPBOARD ───
+document.addEventListener('paste', e => {
+  const items = e.clipboardData?.items;
+  if (!items) return;
+  const files = [];
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      const f = item.getAsFile();
+      if (f) files.push(f);
+    }
+  }
+  if (files.length) {
+    addFiles(files);
+    showToast(`Đã thêm ${files.length} ảnh từ clipboard`, 'success');
+  }
+});
+</script>
+</body>
+</html>
